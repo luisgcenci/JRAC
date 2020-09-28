@@ -1,25 +1,28 @@
 package com.mygdx.jrac.features;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.maps.Map;
-import com.badlogic.gdx.maps.MapLayers;
-import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
-import com.badlogic.gdx.maps.tiled.TiledMapTile;
 import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.math.Rectangle;
+import com.mygdx.jrac.Objects.NaturalObjects;
 import com.mygdx.jrac.Objects.Resources;
+import com.mygdx.jrac.Objects.ResourcesAnimations;
+import com.mygdx.jrac.Objects.Wood;
 import com.mygdx.jrac.hero.Heroes;
 import com.mygdx.jrac.maps.Maps;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class ObjectsInteractions {
 
     private ArrayList<?> interactableObjects;
     private Heroes hero;
-    private boolean isDestructing;
+    SpriteBatch batch;
+
+    //Used to generate random numbers
+    Random random = new Random();
 
     public ObjectsInteractions(ArrayList<?> interactableObjects, Heroes hero) {
 
@@ -27,6 +30,15 @@ public class ObjectsInteractions {
         this.hero = hero;
 
     }
+
+    public ObjectsInteractions(ArrayList<?> interactableObjects, Heroes hero, SpriteBatch batch) {
+
+        this.interactableObjects = interactableObjects;
+        this.hero = hero;
+        this.batch = batch;
+
+    }
+
 
 
     //DEALS WITH COLLISIONS
@@ -43,7 +55,7 @@ public class ObjectsInteractions {
 
                     return true;
                 }
-                ;
+
             }
         }
 
@@ -55,41 +67,56 @@ public class ObjectsInteractions {
 
     //DEALS WITH DESTRUCTION
 
-    public Resources checkForDestruction(Maps map) {
+    public NaturalObjects checkForDestruction(Maps map) {
         //checks if there's destruction
         for (int i = 0; i < interactableObjects.size(); i++) {
 
             Rectangle objAreaOfDestruction = (Rectangle) interactableObjects.get(i);
-            Resources resourceBeingAttacked;
+            NaturalObjects naturalObjectBeingAttacked;
 
             if (hero.getHero().overlaps(objAreaOfDestruction)) {
 
                 //get resource being destroyed
-                resourceBeingAttacked = RecRelationships.allRelationships.get(objAreaOfDestruction);
+                naturalObjectBeingAttacked = RecRelationships.allRelationships.get(objAreaOfDestruction);
 
                 //attack resource
-                resourceBeingAttacked.attackResource(this.hero.getDamagePower());
+                naturalObjectBeingAttacked.attackResource(this.hero.getDamagePower());
 
                 //check if resource is destroyed already
-                if (resourceBeingAttacked.getLife() > 0) {
+                if (naturalObjectBeingAttacked.getLife() > 0) {
 
                     //do nothing
-                    //System.out.println("Getting Resource..." + "(" + resourceBeingAttacked.getLife() + ")");
+                    //System.out.println("Getting Resource..." + "(" + naturalObjectBeingAttacked.getLife() + ")");
                 } else {
 
+                    //save info about NaturalObject that resources will drop from
+                    String resName = naturalObjectBeingAttacked.getName();
+
+                    //this is actually positions of the area of destruction around the NaturalObject but they are very close, so it's all good
+                    float positionX = objAreaOfDestruction.x;
+                    float positionY = objAreaOfDestruction.y;
+
                     //check what type of object should be removed from the foreground
-                    checkObjectTypeToBeRemovedFromForeground(map, resourceBeingAttacked);
+                    checkObjectTypeToBeRemovedFromForeground(map, naturalObjectBeingAttacked);
 
                     //delete resource and destructible area around it and relationship between them
-                    Resources.allResources.remove(resourceBeingAttacked.getObject());
+                    NaturalObjects.allNaturalObjects.remove(naturalObjectBeingAttacked.getObject());
                     DestructibleRecArea.allDestructibleRecAreas.remove(objAreaOfDestruction);
                     RecRelationships.allRelationships.remove(objAreaOfDestruction);
 
                     System.out.println("Resource Destroyed");
+
+                    //Save Resource Name
+
+                    //Now that the Natural Object is destroyed, create resource object base on positionX and position Y of old tree-trunk object
+
+
+                    createNewResourceObject(resName, positionX, positionY);
+
                 }
 
 
-                return resourceBeingAttacked;
+                return naturalObjectBeingAttacked;
             }
 
 
@@ -99,7 +126,7 @@ public class ObjectsInteractions {
     }
 
 
-    private void checkObjectTypeToBeRemovedFromForeground(Maps map, Resources res) {
+    private void checkObjectTypeToBeRemovedFromForeground(Maps map, NaturalObjects res) {
 
         String resName = res.getName();
         Rectangle resourceRec;
@@ -156,6 +183,39 @@ public class ObjectsInteractions {
             }
         }
 
+    }
+
+    private void createNewResourceObject(String resourceName, float positionX, float positionY){
+
+
+        if (resourceName.equals("wood")){
+            Wood newWood = new Wood(resourceName, "being-dropped", positionX, positionY);
+        }
+    }
+
+
+
+
+    //DEALS WITH PICKING UP RESOURCES LAYING AROUND
+    public void checkForResourcesPickUp(){
+
+        ArrayList<Wood> toRemove = new ArrayList<>();
+        String nameOfResourcePickedUp = "";
+        boolean resourcePickedUp = false;
+
+        //go through all the wood possibly laying around
+        for (Wood wood : Wood.allWood){
+
+            if (this.hero.getHero().overlaps(wood.getWoodRec()) && wood.getState().equals("dropped")){
+                resourcePickedUp = this.hero.getHeroInventory().addResourceToInventory(wood.getName());
+                if (resourcePickedUp){
+                    toRemove.add(wood);
+                }
+
+            }
+        }
+
+        Wood.allWood.removeAll(toRemove);
 
     }
 }

@@ -8,7 +8,8 @@ import com.badlogic.gdx.graphics.g2d.TextureRegion;
 
 public enum HeroesAnimations {
 
-    GREENHERO(1, Gdx.files.internal("guy_running_spritesheetUpdated.png"), 4, 4);
+    GREENHERO(1, Gdx.files.internal("guy_running_spritesheetUpdated.png"), 4, 4),
+    GREENHEROWITHWOODRESOURCE(1, Gdx.files.internal("guy_running_spritesheetUpdatedWithWoodResource.png"), 4, 4);
 
     //hero id
     private int heroId;

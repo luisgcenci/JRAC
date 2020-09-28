@@ -4,11 +4,9 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
+import com.mygdx.jrac.Inventory.HeroInventory;
 import com.mygdx.jrac.maps.Maps;
 import com.badlogic.gdx.math.Rectangle;
-
-import java.awt.*;
 
 public class Heroes {
 
@@ -33,22 +31,20 @@ public class Heroes {
     //hero Texture to use whenever game is paused or something like that
     private Texture texture;
 
-    //hero basic animation to run through the screen
-    private Animation<TextureRegion> rightMovementAnimation;
-    private Animation<TextureRegion> leftMovementAnimation;
-    private Animation<TextureRegion> forwardMovementAnimation;
-    private Animation<TextureRegion> backMovementAnimation;
+    //checks if hero is carrying a resource or not
+    private boolean isCarryingResource;
+    private String nameOfResourceBeingCarried = "";
+
 
     //default positions
     private TextureRegion currentDefaultPosition;
-    private TextureRegion defaultPositionRight;
-    private TextureRegion defaultPositionLeft;
-    private TextureRegion defaultPositionForward;
-    private TextureRegion defaultPositionBack;
 
 
     //how fast our hero is
     private int velocity;
+
+    //deals with inventory
+    HeroInventory heroInventory;
 
     public Heroes (int id, String name, float damagePower, int velocity){
 
@@ -65,20 +61,8 @@ public class Heroes {
         //get texture and animations from another classes through id number
         this.texture = getTextureById(id);
 
-        //set animations
-        this.rightMovementAnimation = getRightMovementAnimationById(id);
-        this.leftMovementAnimation = getLeftMovementAnimationById(id);
-        this.forwardMovementAnimation = getForwardMovementAnimationById(id);
-        this.backMovementAnimation = getBackMovementAnimationById(id);
-
-        //set default positions for each animation
-        this.defaultPositionRight = getDefaultPositionRightById(id);
-        this.defaultPositionLeft = getDefaultPositionLeftById(id);
-        this.defaultPositionForward = getDefaultPositionForwardById(id);
-        this.defaultPositionBack = getDefaultPositionBackById(id);
-
         //set currentDefaultPosition to The Right
-        setCurrentDefaultPosition(defaultPositionRight);
+        setCurrentDefaultPosition(getDefaultPositionRightById(heroId));
 
         //Set Hero in the Screen when first created
         this.hero.x = ((Maps.MAP_WIDTH / 2) - (HERO_WIDTH / 2));
@@ -87,6 +71,9 @@ public class Heroes {
         //Set rectangle (hero) dimensions
         this.hero.width = HERO_WIDTH;
         this.hero.height = HERO_HEIGHT;
+
+        //create inventory for Hero
+        heroInventory = new HeroInventory("Inventory", this);
 
     }
 
@@ -106,6 +93,9 @@ public class Heroes {
     public void setCurrentDefaultPosition(TextureRegion currentDefaultPositionInTheGame) {
         this.currentDefaultPosition = currentDefaultPositionInTheGame;
     }
+
+
+
 
     /* END OF SETTERS */
 
@@ -129,7 +119,9 @@ public class Heroes {
 
     public Animation<TextureRegion> getRightMovementAnimationById(int heroId) {
 
+
         if (heroId == 1){
+
             return HeroesAnimations.GREENHERO.getRightMovement();
         }
 
@@ -142,6 +134,7 @@ public class Heroes {
         if (heroId == 1){
             return HeroesAnimations.GREENHERO.getLeftMovement();
         }
+
 
         //gotta figure it out how to return an error or something
         return HeroesAnimations.GREENHERO.getLeftMovement();
@@ -210,6 +203,7 @@ public class Heroes {
 
 
 
+
     /* END OF GET PROPERTIES BY ID */
 
 
@@ -217,45 +211,14 @@ public class Heroes {
 
     //Animations
 
-    public Animation<TextureRegion> getRightMovementAnimation() {
-        return rightMovementAnimation;
-    }
-
-    public Animation<TextureRegion> getLeftMovementAnimation() {
-        return leftMovementAnimation;
-    }
-
-    public Animation<TextureRegion> getForwardMovementAnimation() {
-        return forwardMovementAnimation;
-    }
-
-    public Animation<TextureRegion> getBackMovementAnimation() {
-        return backMovementAnimation;
-    }
-
-    //Default Positions
-
-    public TextureRegion getDefaultPositionRight() {
-        return defaultPositionRight;
-    }
-
-    public TextureRegion getDefaultPositionLeft() {
-        return defaultPositionLeft;
-    }
-
-    public TextureRegion getDefaultPositionForward() {
-        return defaultPositionForward;
-    }
-
-    public TextureRegion getDefaultPositionBack() {
-        return defaultPositionBack;
-    }
-
     public TextureRegion getCurrentDefaultPosition() {
         return currentDefaultPosition;
     }
 
-    //OTHERS
+    public HeroInventory getHeroInventory() {
+        return heroInventory;
+    }
+
 
     public Rectangle getHero() {
         return hero;
@@ -297,6 +260,10 @@ public class Heroes {
     public float getHeroPositionX(){ return this.hero.x; }
 
     public float getHeroPositionY(){ return this.hero.y; }
+
+    public String getNameOfResourceBeingCarried() {
+        return nameOfResourceBeingCarried;
+    }
 
     /* END OF GETTERS */
 }

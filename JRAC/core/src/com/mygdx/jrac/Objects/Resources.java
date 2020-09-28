@@ -1,67 +1,58 @@
 package com.mygdx.jrac.Objects;
 
-import com.badlogic.gdx.maps.MapObject;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Rectangle;
 
 import java.util.ArrayList;
 
-public class Resources{
+public class Resources {
 
     private String name;
-    private MapObject object;
-    private float life;
-    private boolean isAlive;
-    public static ArrayList<MapObject> allResources = new ArrayList<>();
+    private String state;
+    private float positionX, positionY;
 
-    public Resources(String name, MapObject object, boolean isAlive){
+    public Resources (String name, String state, float positionX, float positionY){
 
         this.name = name;
-        this.object = object;
-        this.isAlive = isAlive;
-        this.life = 100;
+        this.state = state;
+        this.positionX = positionX;
+        this.positionY = positionY;
 
-
-        allResources.add(object);
     }
 
-    public String getName(){
-        return this.name;
+    //GETTERS
+
+    public String getName() {
+        return name;
     }
 
-    public float getLife(){
-        if (this.life > 0){
-
-            return this.life;
-        }
-        else{
-            setLife(0);
-            setIsAlive(false);
-        }
-
-        return this.life;
+    public String getState() {
+        return state;
     }
 
-    public MapObject getObject(){
-        return this.object;
+    public float getPositionX() {
+        return positionX;
     }
 
-    public boolean getIsAlive(){
-        return this.isAlive;
+    public float getPositionY() {
+        return positionY;
     }
 
     //SETTERS
 
-    public void setLife(float life){
-        this.life = life;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public void setIsAlive(boolean isAlive){
-        this.isAlive = isAlive;
+    public void setState(String state) {
+        this.state = state;
     }
 
-    //others
+    public void setPositionX(float positionX) {
+        this.positionX = positionX;
+    }
 
-    public void attackResource(float damagePower){
-        this.life -= damagePower;
-        getLife();
+    public void setPositionY(float positionY) {
+        this.positionY = positionY;
     }
 }

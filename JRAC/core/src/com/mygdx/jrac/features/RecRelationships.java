@@ -1,20 +1,20 @@
 package com.mygdx.jrac.features;
 
 import com.badlogic.gdx.math.Rectangle;
-import com.mygdx.jrac.Objects.Resources;
+import com.mygdx.jrac.Objects.NaturalObjects;
 
 import java.util.HashMap;
 
 public class RecRelationships {
 
-    Resources resource;
+    NaturalObjects resource;
     Rectangle destructibleRec;
 
     //keeps track of all relationships
-    public static HashMap<Rectangle, Resources> allRelationships = new HashMap<Rectangle, Resources>();
+    public static HashMap<Rectangle, NaturalObjects> allRelationships = new HashMap<Rectangle, NaturalObjects>();
 
 
-    public RecRelationships(Rectangle destructibleRec, Resources resource ){
+    public RecRelationships(Rectangle destructibleRec, NaturalObjects resource ){
 
         this.destructibleRec = destructibleRec;
         this.resource = resource;

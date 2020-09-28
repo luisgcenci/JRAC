@@ -13,14 +13,22 @@ import com.badlogic.gdx.maps.MapObject;
 import com.badlogic.gdx.maps.objects.RectangleMapObject;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
+import com.mygdx.jrac.Inventory.HeroInventory;
+import com.mygdx.jrac.Inventory.InventoryItem;
 import com.mygdx.jrac.Jrac;
-import com.mygdx.jrac.Objects.Resources;
+import com.mygdx.jrac.Objects.NaturalObjects;
+import com.mygdx.jrac.Objects.ResourcesAnimations;
+import com.mygdx.jrac.Objects.Wood;
 import com.mygdx.jrac.features.DestructibleRecArea;
 import com.mygdx.jrac.features.ObjectsInteractions;
 import com.mygdx.jrac.features.RecRelationships;
 import com.mygdx.jrac.hero.Heroes;
 import com.mygdx.jrac.maps.Maps;
 import com.mygdx.jrac.musics.GameMusics;
+
+import java.util.Random;
 
 public class GameScreen implements Screen {
 
@@ -49,10 +57,14 @@ public class GameScreen implements Screen {
     float oldHeroPositionX, oldHeroPositionY;
 
     //current default frame position
-    TextureRegion currentFrame;
+    TextureRegion heroCurrentFrame;
+    TextureRegion treeCurrentFrame;
 
     //Track elapsed time for the animation
     float stateTime;
+
+    //used for slower animations
+    float destructionStateTime;
 
     /*Map Stuff*/
 
@@ -70,7 +82,7 @@ public class GameScreen implements Screen {
     private final ShapeRenderer sr;
 
     //Trees
-    Resources tree;
+    NaturalObjects tree;
     Rectangle treeRec;
 
     //Handles identifying when an object is destructible and hero is near it enough to destroy it
@@ -85,10 +97,14 @@ public class GameScreen implements Screen {
     boolean collided;
 
     //check if it's destructing
-    Resources resourceBeingExtracted;
+    NaturalObjects resourceBeingExtracted;
 
     //timer to keep track of texts
     float timer = 0f;
+
+    //Used to generate random numbers
+    Random random = new Random();
+
 
     public GameScreen(Jrac game){
 
@@ -118,9 +134,13 @@ public class GameScreen implements Screen {
         //start stateTime
         stateTime = 0f;
 
+        //state time used for when a object is destroyed
+        destructionStateTime = 0f;
+
         //Set up Audios
         mainScreenMusic = GameMusics.GAMESCREENMUSIC.getMusic();
         mainScreenMusic.setLooping(true);
+
 
 
 
@@ -129,7 +149,7 @@ public class GameScreen implements Screen {
             if (object instanceof RectangleMapObject){
                 
                 //Create Resource
-                tree = new Resources(object.getName(), object, true);
+                tree = new NaturalObjects(object.getName(), object, true);
 
                 //Create Destructible object based around resource
                 treeRec = ((RectangleMapObject) object).getRectangle();
@@ -140,9 +160,10 @@ public class GameScreen implements Screen {
 
                 //Create Relationship
                 resDestAreaRel = new RecRelationships(destructibleObjectRec, tree);
-                
+
             }
         }
+
     }
     @Override
     public void show() {
@@ -152,6 +173,9 @@ public class GameScreen implements Screen {
     @Override
     public void render(float delta) {
 
+        //Accumulate Elapsed State Time
+        stateTime += Gdx.graphics.getDeltaTime();
+
         // timer that makes sure some texts (destructing.. for now) shows for at least 2 seconds
         timer += Gdx.graphics.getDeltaTime();
 
@@ -159,17 +183,18 @@ public class GameScreen implements Screen {
         Gdx.gl.glClearColor(0,0,0,0.1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        //Accumulate Elapsed State Time
-        stateTime += Gdx.graphics.getDeltaTime();
-
 
         //Set currentFrame to default position
-        currentFrame = HERO.getCurrentDefaultPosition();
+        heroCurrentFrame = HERO.getCurrentDefaultPosition();
 
         //Update cam every time render is called
         CAM.position.x = this.HERO.getHeroPositionX();
         CAM.position.y = this.HERO.getHeroPositionY();
         CAM.update();
+
+        //update inventory positions in the screen everytime render is called
+        this.HERO.getHeroInventory().setPositionXAccordinglyWHeroAndScreen(this.HERO);
+        this.HERO.getHeroInventory().setPositionYAccordinglyWHeroAndScreen(this.HERO, SCREEN_HEIGHT);
 
         //set the TiledMapRendered view based on what the camera sees, and render the map
         backgroundRenderer.setView(CAM);
@@ -198,15 +223,22 @@ public class GameScreen implements Screen {
             //move hero to the right accordingly with its velocity and the delta time
             this.HERO.setHeroPositionX(this.HERO.getHeroPositionX() + heroVelocity * delta );
 
+
             //check for collision
-            interactions = new ObjectsInteractions(Resources.allResources, this.HERO);
+            interactions = new ObjectsInteractions(NaturalObjects.allNaturalObjects, this.HERO, game.batch);
             collided = interactions.checkForCollision();
 
+            //check for collision with resources laying around and pick them up if that happens
+            if (!Wood.allWood.isEmpty()){
+                interactions = new ObjectsInteractions(Wood.getAllWood(), this.HERO, game.batch);
+                interactions.checkForResourcesPickUp();
+            }
+
             //update current frame accordingly to the state time
-            currentFrame = HERO.getRightMovementAnimation().getKeyFrame(stateTime, true);
+            heroCurrentFrame = HERO.getRightMovementAnimationById(HERO.getHeroId()).getKeyFrame(stateTime, true);
 
             //Now After the hero moved to the right we want to set his currentPosition to its default right position frame
-            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionRight());
+            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionRightById(HERO.getHeroId()));
         }
 
         else if (Gdx.input.isKeyPressed(Input.Keys.LEFT)){
@@ -215,14 +247,20 @@ public class GameScreen implements Screen {
             this.HERO.setHeroPositionX(this.HERO.getHeroPositionX() - heroVelocity * delta);
 
             //check for collision
-            interactions = new ObjectsInteractions(Resources.allResources, this.HERO);
+            interactions = new ObjectsInteractions(NaturalObjects.allNaturalObjects, this.HERO, game.batch);
             collided = interactions.checkForCollision();
 
+            //check for collision with resources laying around and pick them up if that happens
+            if (!Wood.allWood.isEmpty()){
+                interactions = new ObjectsInteractions(Wood.getAllWood(), this.HERO);
+                interactions.checkForResourcesPickUp();
+            }
+
             //update current frame accordingly to the state time
-            currentFrame = HERO.getLeftMovementAnimation().getKeyFrame(stateTime, true);
+            heroCurrentFrame = HERO.getLeftMovementAnimationById(HERO.getHeroId()).getKeyFrame(stateTime, true);
 
             //Now After the hero moved to the right we want to set his currentPosition to its default right position frame
-            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionLeft());
+            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionLeftById(HERO.getHeroId()));
         }
 
         else if (Gdx.input.isKeyPressed(Input.Keys.UP)){
@@ -231,14 +269,20 @@ public class GameScreen implements Screen {
             this.HERO.setHeroPositionY(this.HERO.getHeroPositionY() + heroVelocity * delta);
 
             //check for collision
-            interactions = new ObjectsInteractions(Resources.allResources, this.HERO);
+            interactions = new ObjectsInteractions(NaturalObjects.allNaturalObjects, this.HERO, game.batch);
             collided = interactions.checkForCollision();
 
+            //check for collision with resources laying around and pick them up if that happens
+            if (!Wood.allWood.isEmpty()){
+                interactions = new ObjectsInteractions(Wood.getAllWood(), this.HERO);
+                interactions.checkForResourcesPickUp();
+            }
+
             //update current frame accordingly to the state time
-            currentFrame = HERO.getForwardMovementAnimation().getKeyFrame(stateTime, true);
+            heroCurrentFrame = HERO.getForwardMovementAnimationById(HERO.getHeroId()).getKeyFrame(stateTime, true);
 
             //Now After the hero moved up we want to set his currentPosition to its default forward position frame
-            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionForward());
+            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionForwardById(HERO.getHeroId()));
 
         }
 
@@ -248,15 +292,23 @@ public class GameScreen implements Screen {
             this.HERO.setHeroPositionY(this.HERO.getHeroPositionY() - heroVelocity * delta);
 
             //check for collision
-            interactions = new ObjectsInteractions(Resources.allResources, this.HERO);
+            interactions = new ObjectsInteractions(NaturalObjects.allNaturalObjects, this.HERO, game.batch);
             collided = interactions.checkForCollision();
 
+            //check for collision with resources laying around and pick them up if that happens
+            if (!Wood.allWood.isEmpty()){
+                interactions = new ObjectsInteractions(Wood.getAllWood(), this.HERO);
+                interactions.checkForResourcesPickUp();
+            }
+
             //update current frame accordingly to the state time
-            currentFrame = HERO.getBackMovementAnimation().getKeyFrame(stateTime, true);
+            heroCurrentFrame = HERO.getBackMovementAnimationById(HERO.getHeroId()).getKeyFrame(stateTime, true);
 
             //Now After the hero moved down we want to set his currentPosition to its default back position frame
-            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionBack());
+            HERO.setCurrentDefaultPosition(HERO.getDefaultPositionBackById(HERO.getHeroId()));
         }
+
+        // MOUSE INPUTS
 
         else if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)){
 
@@ -267,6 +319,22 @@ public class GameScreen implements Screen {
             resourceBeingExtracted = interactions.checkForDestruction(map);
         }
 
+        if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+            ClickListener newClick;
+            InputEvent event;
+
+            event = new InputEvent();
+            newClick = new ClickListener();
+
+            for (InventoryItem item : HeroInventory.inventoryItems) {
+
+                newClick.clicked(event, item.getPositionX(), item.getPositionY());
+
+            }
+
+        }
+
+
         //get hero's to his old position if there was any collision
         if (collided){
             this.HERO.setHeroPositionX(oldHeroPositionX);
@@ -276,12 +344,41 @@ public class GameScreen implements Screen {
         //Forgot what this does, converts cam coordinates to batch coordinates bc they are different for some reason
         game.batch.setProjectionMatrix(CAM.combined);
 
-        /*                                   BATCH HERO DRAW                                                          **/
-        //start drawing
         game.batch.begin();
 
+        /*                                   Resources Animations                                                          **/
+
+
+
+        /*                                   BATCH RESOURCES DRAW                                                          **/
+
+        for (Wood wood : Wood.allWood) {
+
+            if (wood.getState().equals("being-dropped")){
+
+                destructionStateTime += Gdx.graphics.getDeltaTime();
+
+                treeCurrentFrame = ResourcesAnimations.TREEDEXPLOSION.getAnimation().getKeyFrame(destructionStateTime, false);;
+                game.batch.draw(treeCurrentFrame, wood.getWoodRec().x - (wood.getWoodRec().getWidth() / 2), wood.getWoodRec().y);
+
+                if (ResourcesAnimations.TREEDEXPLOSION.getAnimation().isAnimationFinished(destructionStateTime)){
+                    wood.setState("dropped");
+
+                    //reset destructionStateTime
+                    destructionStateTime = 0f;
+                }
+            }
+            else{
+                game.batch.draw(wood.getTex(), wood.getPositionX(), wood.getPositionY());
+            }
+        }
+
+
+        /*                                   BATCH HERO DRAW                                                               **/
+
         //Draw our hero's animation in its currentFrame if the game has started already.
-        game.batch.draw(currentFrame, this.HERO.getHeroPositionX(), this.HERO.getHeroPositionY());
+        game.batch.draw(heroCurrentFrame, this.HERO.getHeroPositionX(), this.HERO.getHeroPositionY());
+
 
         //stop drawing
         game.batch.end();
@@ -289,11 +386,27 @@ public class GameScreen implements Screen {
         //render foreground map
         foregroundRenderer.render();
 
-        /*                                   BATCH TEXTS DRAW                                                          **/
+        /*                                   BATCH MAIN SCREEN DRAW                                                               **/
 
         game.batch.begin();
 
-        //Draw texts
+        //inventory
+        game.batch.draw(HERO.getHeroInventory().getTex(), HERO.getHeroInventory().getPositionX(), HERO.getHeroInventory().getPositionY());
+
+        //inventory items
+        for (InventoryItem item: HeroInventory.inventoryItems){
+
+            //centralize item texture inside the rectangle
+            float spaceRoom = 5;
+
+            //if there's an item there
+            if (!item.getIsEmpty()){
+                game.batch.draw(item.getTex(), item.getPositionX() + spaceRoom, item.getPositionY() + spaceRoom);
+            }
+        }
+        /*                                   BATCH TEXTS DRAW                                                          **/
+
+        //Draw Texts Around Here
         if (resourceBeingExtracted != null){
 
             game.font.draw(game.batch, "Extracting Resource '" + resourceBeingExtracted.getName() + "'" +
@@ -305,17 +418,24 @@ public class GameScreen implements Screen {
         }
 
         game.batch.end();
-
-
-
         /*                                   DEBUGGING PURPOSES                                                         **/
 
 //        sr.begin(ShapeRenderer.ShapeType.Line);
 //        sr.rect(this.HERO.getHeroPositionX(), this.HERO.getHeroPositionY(), this.HERO.getHERO_WIDTH(), this.HERO.getHERO_HEIGHT());
+//
+//        //inventory stuff
+//        sr.rect(this.HERO.getHeroInventory().getInventoryRec().x, this.HERO.getHeroInventory().getInventoryRec().y,
+//                this.HERO.getHeroInventory().getInventoryRec().width, this.HERO.getHeroInventory().getInventoryRec().height);
+//
+//        for (InventoryItem item : HeroInventory.inventoryItems){
+//            sr.rect(item.getItemRec().x, item.getItemRec().y, item.getItemRec().width, item.getItemRec().height);
+//        }
 //        sr.end();
 //
+//
+//
 //        //render lines around current objects (resources and destructible rectangle areas)
-//        for (MapObject resource : Resources.allResources){
+//        for (MapObject resource : NaturalObjects.allNaturalObjects){
 //
 //            if (resource instanceof  RectangleMapObject){
 //                //Get Rectangle around resource
@@ -333,6 +453,14 @@ public class GameScreen implements Screen {
 //            //render line around rectangles
 //            sr.begin(ShapeRenderer.ShapeType.Line);
 //            sr.rect(destructRecArea.x, destructRecArea.y, destructRecArea.width, destructRecArea.height);
+//            sr.end();
+//        }
+//
+//        for (Wood wood : Wood.allWood) {
+//
+//            //render line around rectangles
+//            sr.begin(ShapeRenderer.ShapeType.Line);
+//            sr.rect(wood.getWoodRec().x, wood.getWoodRec().y, wood.getWoodRec().width, wood.getWoodRec().height);
 //            sr.end();
 //        }
 
